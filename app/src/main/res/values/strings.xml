@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Vistagram</string>
+    <string name="tagline">Capture, share, and connect through visual stories.</string>
+    <string name="sign_in_google">Continue with Google</string>
+    <string name="sign_out">Log Out</string>
+    <string name="tab_home">Home</string>
+    <string name="tab_explore">Explore</string>
+    <string name="tab_create">Create</string>
+    <string name="tab_reels">Reels</string>
+    <string name="tab_profile">Profile</string>
+    <string name="no_posts_title">Your feed is quiet</string>
+    <string name="no_posts_subtitle">Share your first photo, story, or reel to light up the feed.</string>
+    <string name="no_reels_title">No reels yet</string>
+    <string name="no_reels_subtitle">Tap Create to publish a vertical reel with music and effects.</string>
+    <string name="no_messages_title">No messages yet</string>
+    <string name="no_messages_subtitle">Start a direct conversation or share a post with a friend.</string>
+</resources>

@@ -1,0 +1,517 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HELPERS ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function appScopeConst() {
+      return 'vistagram-main';
+    }
+
+    function isValidMediaRef(val) {
+      return val is string && val.size() >= 1 && val.size() <= 200000;
+    }
+
+    // --- ENTITY VALIDATION HELPERS ---
+    function isValidIgUser(data) {
+      return data.appScope == appScopeConst() &&
+             data.userId is string && isValidId(data.userId) &&
+             data.username is string && data.username.size() >= 2 && data.username.size() <= 30 &&
+             data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 60 &&
+             data.bio is string && data.bio.size() <= 300 &&
+             data.website is string && data.website.size() <= 120 &&
+             (!('avatarUrl' in data) || isValidMediaRef(data.avatarUrl)) &&
+             data.verified is bool &&
+             data.postsCount is int && data.postsCount >= 0 &&
+             data.followersCount is int && data.followersCount >= 0 &&
+             data.followingCount is int && data.followingCount >= 0 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidFollowEdge(data) {
+      return data.appScope == appScopeConst() &&
+             data.userId is string && isValidId(data.userId) &&
+             data.targetUserId is string && isValidId(data.targetUserId) &&
+             data.username is string && data.username.size() >= 2 && data.username.size() <= 30 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60 &&
+             (!('avatarUrl' in data) || isValidMediaRef(data.avatarUrl)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidIgPost(data) {
+      return data.appScope == appScopeConst() &&
+             data.authorId is string && isValidId(data.authorId) &&
+             data.authorUsername is string && data.authorUsername.size() >= 2 && data.authorUsername.size() <= 30 &&
+             data.authorDisplayName is string && data.authorDisplayName.size() >= 1 && data.authorDisplayName.size() <= 60 &&
+             (!('authorAvatarUrl' in data) || isValidMediaRef(data.authorAvatarUrl)) &&
+             data.authorVerified is bool &&
+             data.mediaUrls is list && data.mediaUrls.size() >= 1 && data.mediaUrls.size() <= 5 &&
+             isValidMediaRef(data.mediaUrls[0]) &&
+             data.filterName is string && data.filterName.size() >= 1 && data.filterName.size() <= 32 &&
+             data.caption is string && data.caption.size() <= 2200 &&
+             data.location is string && data.location.size() <= 100 &&
+             data.category in ['PHOTOGRAPHY', 'TRAVEL', 'FOOD', 'ART', 'TECH', 'FASHION', 'LIFESTYLE'] &&
+             data.likesCount is int && data.likesCount >= 0 &&
+             data.commentsCount is int && data.commentsCount >= 0 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidIgComment(data) {
+      return data.appScope == appScopeConst() &&
+             data.parentId is string && isValidId(data.parentId) &&
+             data.authorId is string && isValidId(data.authorId) &&
+             data.authorUsername is string && data.authorUsername.size() >= 2 && data.authorUsername.size() <= 30 &&
+             (!('authorAvatarUrl' in data) || isValidMediaRef(data.authorAvatarUrl)) &&
+             data.body is string && data.body.size() >= 1 && data.body.size() <= 1000 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidIgStory(data) {
+      return data.appScope == appScopeConst() &&
+             data.authorId is string && isValidId(data.authorId) &&
+             data.authorUsername is string && data.authorUsername.size() >= 2 && data.authorUsername.size() <= 30 &&
+             (!('authorAvatarUrl' in data) || isValidMediaRef(data.authorAvatarUrl)) &&
+             isValidMediaRef(data.mediaUrl) &&
+             data.overlayText is string && data.overlayText.size() <= 200 &&
+             data.filterName is string && data.filterName.size() >= 1 && data.filterName.size() <= 32 &&
+             data.expiresAtMillis is int && data.expiresAtMillis > 0 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidIgReel(data) {
+      return data.appScope == appScopeConst() &&
+             data.authorId is string && isValidId(data.authorId) &&
+             data.authorUsername is string && data.authorUsername.size() >= 2 && data.authorUsername.size() <= 30 &&
+             (!('authorAvatarUrl' in data) || isValidMediaRef(data.authorAvatarUrl)) &&
+             isValidMediaRef(data.mediaUrl) &&
+             data.caption is string && data.caption.size() <= 500 &&
+             data.audioTrack is string && data.audioTrack.size() >= 1 && data.audioTrack.size() <= 100 &&
+             data.filterName is string && data.filterName.size() >= 1 && data.filterName.size() <= 32 &&
+             data.likesCount is int && data.likesCount >= 0 &&
+             data.commentsCount is int && data.commentsCount >= 0 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidIgChat(data) {
+      return data.participantIds is list && data.participantIds.size() == 2 &&
+             isValidId(data.participantIds[0]) && isValidId(data.participantIds[1]) &&
+             data.participantAId is string && isValidId(data.participantAId) &&
+             data.participantAName is string && data.participantAName.size() >= 1 && data.participantAName.size() <= 60 &&
+             (!('participantAAvatar' in data) || isValidMediaRef(data.participantAAvatar)) &&
+             data.participantBId is string && isValidId(data.participantBId) &&
+             data.participantBName is string && data.participantBName.size() >= 1 && data.participantBName.size() <= 60 &&
+             (!('participantBAvatar' in data) || isValidMediaRef(data.participantBAvatar)) &&
+             data.lastMessageText is string && data.lastMessageText.size() <= 300 &&
+             data.lastSenderId is string && isValidId(data.lastSenderId) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidIgMessage(data) {
+      return data.chatId is string && isValidId(data.chatId) &&
+             data.participantIds is list && data.participantIds.size() == 2 &&
+             isValidId(data.participantIds[0]) && isValidId(data.participantIds[1]) &&
+             data.senderId is string && isValidId(data.senderId) &&
+             data.senderUsername is string && data.senderUsername.size() >= 2 && data.senderUsername.size() <= 30 &&
+             data.text is string && data.text.size() >= 1 && data.text.size() <= 1000 &&
+             (!('sharedPostId' in data) || isValidId(data.sharedPostId)) &&
+             (!('sharedPostImage' in data) || isValidMediaRef(data.sharedPostImage)) &&
+             (!('sharedPostAuthor' in data) || (data.sharedPostAuthor is string && data.sharedPostAuthor.size() <= 60)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidIgNotification(data) {
+      return data.targetUserId is string && isValidId(data.targetUserId) &&
+             data.actorId is string && isValidId(data.actorId) &&
+             data.actorUsername is string && data.actorUsername.size() >= 2 && data.actorUsername.size() <= 30 &&
+             (!('actorAvatarUrl' in data) || isValidMediaRef(data.actorAvatarUrl)) &&
+             data.type in ['LIKE', 'COMMENT', 'FOLLOW', 'STORY_REPLY'] &&
+             (!('postId' in data) || isValidId(data.postId)) &&
+             (!('postThumbnail' in data) || isValidMediaRef(data.postThumbnail)) &&
+             data.previewText is string && data.previewText.size() >= 1 && data.previewText.size() <= 200 &&
+             data.read is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // --- PUBLIC USER PROFILES (NO PII) ---
+    match /ig_users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && existing().appScope == appScopeConst();
+      allow list: if isSignedIn() && existing().appScope == appScopeConst();
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidIgUser(incoming()) &&
+                       incoming().userId == userId &&
+                       incoming().verified == false &&
+                       incoming().postsCount == 0 &&
+                       incoming().followersCount == 0 &&
+                       incoming().followingCount == 0 &&
+                       incoming().keys().hasAll(['appScope', 'userId', 'username', 'displayName', 'bio', 'website', 'verified', 'postsCount', 'followersCount', 'followingCount', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['appScope', 'userId', 'username', 'displayName', 'bio', 'website', 'avatarUrl', 'verified', 'postsCount', 'followersCount', 'followingCount', 'createdAt', 'updatedAt']);
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidIgUser(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().appScope == existing().appScope &&
+                       incoming().verified == existing().verified &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         // Action 1: Owner edits profile info
+                         (isOwner(userId) &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['username', 'displayName', 'bio', 'website', 'avatarUrl', 'updatedAt'])) ||
+                         // Action 2: Owner updates own post count
+                         (isOwner(userId) &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['postsCount', 'updatedAt']) &&
+                          (incoming().postsCount == existing().postsCount + 1 ||
+                           (incoming().postsCount == existing().postsCount - 1 && incoming().postsCount >= 0))) ||
+                         // Action 3: Owner updates own following count
+                         (isOwner(userId) &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['followingCount', 'updatedAt']) &&
+                          (incoming().followingCount == existing().followingCount + 1 ||
+                           (incoming().followingCount == existing().followingCount - 1 && incoming().followingCount >= 0))) ||
+                         // Action 4: Atomic follow/unfollow synced with /ig_users/{userId}/followers/{uid}
+                         (incoming().diff(existing()).affectedKeys().hasOnly(['followersCount', 'updatedAt']) &&
+                          (
+                            (incoming().followersCount == existing().followersCount + 1 &&
+                             !exists(/databases/$(database)/documents/ig_users/$(userId)/followers/$(request.auth.uid)) &&
+                             existsAfter(/databases/$(database)/documents/ig_users/$(userId)/followers/$(request.auth.uid))) ||
+                            (incoming().followersCount == existing().followersCount - 1 &&
+                             incoming().followersCount >= 0 &&
+                             exists(/databases/$(database)/documents/ig_users/$(userId)/followers/$(request.auth.uid)) &&
+                             !existsAfter(/databases/$(database)/documents/ig_users/$(userId)/followers/$(request.auth.uid)))
+                          ))
+                       );
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      match /followers/{followerId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(followerId) && existing().appScope == appScopeConst();
+        allow list: if isSignedIn() && existing().appScope == appScopeConst();
+
+        allow create: if isOwner(followerId) &&
+                         isValidId(userId) &&
+                         isValidId(followerId) &&
+                         isValidFollowEdge(incoming()) &&
+                         incoming().userId == followerId &&
+                         incoming().targetUserId == userId &&
+                         incoming().keys().hasAll(['appScope', 'userId', 'targetUserId', 'username', 'displayName', 'createdAt']) &&
+                         incoming().keys().hasOnly(['appScope', 'userId', 'targetUserId', 'username', 'displayName', 'avatarUrl', 'createdAt']) &&
+                         exists(/databases/$(database)/documents/ig_users/$(userId));
+
+        allow update: if false;
+        allow delete: if isOwner(followerId) && isValidId(userId) && isValidId(followerId);
+      }
+
+      match /following/{targetId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(targetId) && existing().appScope == appScopeConst();
+        allow list: if isSignedIn() && existing().appScope == appScopeConst();
+
+        allow create: if isOwner(userId) &&
+                         isValidId(userId) &&
+                         isValidId(targetId) &&
+                         isValidFollowEdge(incoming()) &&
+                         incoming().userId == userId &&
+                         incoming().targetUserId == targetId &&
+                         incoming().keys().hasAll(['appScope', 'userId', 'targetUserId', 'username', 'displayName', 'createdAt']) &&
+                         incoming().keys().hasOnly(['appScope', 'userId', 'targetUserId', 'username', 'displayName', 'avatarUrl', 'createdAt']) &&
+                         exists(/databases/$(database)/documents/ig_users/$(targetId));
+
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(targetId);
+      }
+    }
+
+    // --- FEED POSTS ---
+    match /ig_posts/{postId} {
+      allow get: if isSignedIn() && isValidId(postId) && existing().appScope == appScopeConst();
+      allow list: if isSignedIn() && existing().appScope == appScopeConst();
+
+      allow create: if isSignedIn() &&
+                       isValidId(postId) &&
+                       isValidIgPost(incoming()) &&
+                       incoming().authorId == request.auth.uid &&
+                       incoming().likesCount == 0 &&
+                       incoming().commentsCount == 0 &&
+                       incoming().keys().hasAll(['appScope', 'authorId', 'authorUsername', 'authorDisplayName', 'authorVerified', 'mediaUrls', 'filterName', 'caption', 'location', 'category', 'likesCount', 'commentsCount', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['appScope', 'authorId', 'authorUsername', 'authorDisplayName', 'authorAvatarUrl', 'authorVerified', 'mediaUrls', 'filterName', 'caption', 'location', 'category', 'likesCount', 'commentsCount', 'createdAt', 'updatedAt']);
+
+      allow update: if isSignedIn() &&
+                       isValidId(postId) &&
+                       isValidIgPost(incoming()) &&
+                       incoming().authorId == existing().authorId &&
+                       incoming().appScope == existing().appScope &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         // Action 1: Author edits caption / location / category
+                         (existing().authorId == request.auth.uid &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['caption', 'location', 'category', 'updatedAt'])) ||
+                         // Action 2: Atomic Like/Unlike synced with /users/{uid}/ig_liked_posts/{postId}
+                         (incoming().diff(existing()).affectedKeys().hasOnly(['likesCount', 'updatedAt']) &&
+                          (
+                            (incoming().likesCount == existing().likesCount + 1 &&
+                             !exists(/databases/$(database)/documents/users/$(request.auth.uid)/ig_liked_posts/$(postId)) &&
+                             existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/ig_liked_posts/$(postId))) ||
+                            (incoming().likesCount == existing().likesCount - 1 &&
+                             incoming().likesCount >= 0 &&
+                             exists(/databases/$(database)/documents/users/$(request.auth.uid)/ig_liked_posts/$(postId)) &&
+                             !existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/ig_liked_posts/$(postId)))
+                          )) ||
+                         // Action 3: Comment count increment/decrement
+                         (incoming().diff(existing()).affectedKeys().hasOnly(['commentsCount', 'updatedAt']) &&
+                          (incoming().commentsCount == existing().commentsCount + 1 ||
+                           (incoming().commentsCount == existing().commentsCount - 1 && incoming().commentsCount >= 0)))
+                       );
+
+      allow delete: if isSignedIn() && isValidId(postId) && existing().authorId == request.auth.uid;
+
+      match /comments/{commentId} {
+        allow get: if isSignedIn() && isValidId(postId) && isValidId(commentId) && existing().appScope == appScopeConst();
+        allow list: if isSignedIn() && existing().appScope == appScopeConst();
+
+        allow create: if isSignedIn() &&
+                         isValidId(postId) &&
+                         isValidId(commentId) &&
+                         isValidIgComment(incoming()) &&
+                         incoming().authorId == request.auth.uid &&
+                         incoming().parentId == postId &&
+                         incoming().keys().hasAll(['appScope', 'parentId', 'authorId', 'authorUsername', 'body', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['appScope', 'parentId', 'authorId', 'authorUsername', 'authorAvatarUrl', 'body', 'createdAt', 'updatedAt']) &&
+                         exists(/databases/$(database)/documents/ig_posts/$(postId));
+
+        allow update: if false;
+        allow delete: if isSignedIn() && isValidId(postId) && isValidId(commentId) && existing().authorId == request.auth.uid;
+      }
+    }
+
+    // --- STORIES ---
+    match /ig_stories/{storyId} {
+      allow get: if isSignedIn() && isValidId(storyId) && existing().appScope == appScopeConst();
+      allow list: if isSignedIn() && existing().appScope == appScopeConst();
+
+      allow create: if isSignedIn() &&
+                       isValidId(storyId) &&
+                       isValidIgStory(incoming()) &&
+                       incoming().authorId == request.auth.uid &&
+                       incoming().keys().hasAll(['appScope', 'authorId', 'authorUsername', 'mediaUrl', 'overlayText', 'filterName', 'expiresAtMillis', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['appScope', 'authorId', 'authorUsername', 'authorAvatarUrl', 'mediaUrl', 'overlayText', 'filterName', 'expiresAtMillis', 'createdAt', 'updatedAt']);
+
+      allow update: if false;
+      allow delete: if isSignedIn() && isValidId(storyId) && existing().authorId == request.auth.uid;
+    }
+
+    // --- REELS ---
+    match /ig_reels/{reelId} {
+      allow get: if isSignedIn() && isValidId(reelId) && existing().appScope == appScopeConst();
+      allow list: if isSignedIn() && existing().appScope == appScopeConst();
+
+      allow create: if isSignedIn() &&
+                       isValidId(reelId) &&
+                       isValidIgReel(incoming()) &&
+                       incoming().authorId == request.auth.uid &&
+                       incoming().likesCount == 0 &&
+                       incoming().commentsCount == 0 &&
+                       incoming().keys().hasAll(['appScope', 'authorId', 'authorUsername', 'mediaUrl', 'caption', 'audioTrack', 'filterName', 'likesCount', 'commentsCount', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['appScope', 'authorId', 'authorUsername', 'authorAvatarUrl', 'mediaUrl', 'caption', 'audioTrack', 'filterName', 'likesCount', 'commentsCount', 'createdAt', 'updatedAt']);
+
+      allow update: if isSignedIn() &&
+                       isValidId(reelId) &&
+                       isValidIgReel(incoming()) &&
+                       incoming().authorId == existing().authorId &&
+                       incoming().appScope == existing().appScope &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         (existing().authorId == request.auth.uid &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['caption', 'audioTrack', 'updatedAt'])) ||
+                         (incoming().diff(existing()).affectedKeys().hasOnly(['likesCount', 'updatedAt']) &&
+                          (
+                            (incoming().likesCount == existing().likesCount + 1 &&
+                             !exists(/databases/$(database)/documents/users/$(request.auth.uid)/ig_liked_reels/$(reelId)) &&
+                             existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/ig_liked_reels/$(reelId))) ||
+                            (incoming().likesCount == existing().likesCount - 1 &&
+                             incoming().likesCount >= 0 &&
+                             exists(/databases/$(database)/documents/users/$(request.auth.uid)/ig_liked_reels/$(reelId)) &&
+                             !existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)/ig_liked_reels/$(reelId)))
+                          )) ||
+                         (incoming().diff(existing()).affectedKeys().hasOnly(['commentsCount', 'updatedAt']) &&
+                          (incoming().commentsCount == existing().commentsCount + 1 ||
+                           (incoming().commentsCount == existing().commentsCount - 1 && incoming().commentsCount >= 0)))
+                       );
+
+      allow delete: if isSignedIn() && isValidId(reelId) && existing().authorId == request.auth.uid;
+
+      match /comments/{commentId} {
+        allow get: if isSignedIn() && isValidId(reelId) && isValidId(commentId) && existing().appScope == appScopeConst();
+        allow list: if isSignedIn() && existing().appScope == appScopeConst();
+
+        allow create: if isSignedIn() &&
+                         isValidId(reelId) &&
+                         isValidId(commentId) &&
+                         isValidIgComment(incoming()) &&
+                         incoming().authorId == request.auth.uid &&
+                         incoming().parentId == reelId &&
+                         incoming().keys().hasAll(['appScope', 'parentId', 'authorId', 'authorUsername', 'body', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['appScope', 'parentId', 'authorId', 'authorUsername', 'authorAvatarUrl', 'body', 'createdAt', 'updatedAt']) &&
+                         exists(/databases/$(database)/documents/ig_reels/$(reelId));
+
+        allow update: if false;
+        allow delete: if isSignedIn() && isValidId(reelId) && isValidId(commentId) && existing().authorId == request.auth.uid;
+      }
+    }
+
+    // --- DIRECT MESSAGES ---
+    match /ig_chats/{chatId} {
+      allow get: if isSignedIn() && isValidId(chatId) && request.auth.uid in existing().participantIds;
+      allow list: if isSignedIn() && request.auth.uid in existing().participantIds;
+
+      allow create: if isSignedIn() &&
+                       isValidId(chatId) &&
+                       isValidIgChat(incoming()) &&
+                       request.auth.uid in incoming().participantIds &&
+                       incoming().lastSenderId == request.auth.uid &&
+                       incoming().keys().hasAll(['participantIds', 'participantAId', 'participantAName', 'participantBId', 'participantBName', 'lastMessageText', 'lastSenderId', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['participantIds', 'participantAId', 'participantAName', 'participantAAvatar', 'participantBId', 'participantBName', 'participantBAvatar', 'lastMessageText', 'lastSenderId', 'createdAt', 'updatedAt']);
+
+      allow update: if isSignedIn() &&
+                       isValidId(chatId) &&
+                       isValidIgChat(incoming()) &&
+                       request.auth.uid in existing().participantIds &&
+                       incoming().participantIds == existing().participantIds &&
+                       incoming().participantAId == existing().participantAId &&
+                       incoming().participantBId == existing().participantBId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().lastSenderId == request.auth.uid &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['lastMessageText', 'lastSenderId', 'updatedAt']);
+
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow get: if isSignedIn() && isValidId(chatId) && isValidId(messageId) && request.auth.uid in existing().participantIds;
+        allow list: if isSignedIn() && request.auth.uid in existing().participantIds;
+
+        allow create: if isSignedIn() &&
+                         isValidId(chatId) &&
+                         isValidId(messageId) &&
+                         isValidIgMessage(incoming()) &&
+                         incoming().chatId == chatId &&
+                         incoming().senderId == request.auth.uid &&
+                         request.auth.uid in incoming().participantIds &&
+                         incoming().keys().hasAll(['chatId', 'participantIds', 'senderId', 'senderUsername', 'text', 'createdAt']) &&
+                         incoming().keys().hasOnly(['chatId', 'participantIds', 'senderId', 'senderUsername', 'text', 'sharedPostId', 'sharedPostImage', 'sharedPostAuthor', 'createdAt']) &&
+                         exists(/databases/$(database)/documents/ig_chats/$(chatId)) &&
+                         request.auth.uid in get(/databases/$(database)/documents/ig_chats/$(chatId)).data.participantIds;
+
+        allow update: if false;
+        allow delete: if isSignedIn() && isValidId(chatId) && isValidId(messageId) && existing().senderId == request.auth.uid;
+      }
+    }
+
+    // --- USER-SCOPED MARKERS & NOTIFICATIONS ---
+    match /users/{userId}/ig_liked_posts/{postId} {
+      allow get: if isOwner(userId) && isValidId(postId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(postId) &&
+                       incoming().userId == userId && incoming().targetId == postId &&
+                       incoming().keys().hasAll(['userId', 'targetId', 'createdAt']) &&
+                       incoming().keys().hasOnly(['userId', 'targetId', 'createdAt']) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       exists(/databases/$(database)/documents/ig_posts/$(postId));
+      allow update: if false;
+      allow delete: if isOwner(userId) && isValidId(postId);
+    }
+
+    match /users/{userId}/ig_bookmarks/{postId} {
+      allow get: if isOwner(userId) && isValidId(postId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(postId) &&
+                       incoming().userId == userId && incoming().targetId == postId &&
+                       incoming().keys().hasAll(['userId', 'targetId', 'createdAt']) &&
+                       incoming().keys().hasOnly(['userId', 'targetId', 'createdAt']) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       exists(/databases/$(database)/documents/ig_posts/$(postId));
+      allow update: if false;
+      allow delete: if isOwner(userId) && isValidId(postId);
+    }
+
+    match /users/{userId}/ig_liked_reels/{reelId} {
+      allow get: if isOwner(userId) && isValidId(reelId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(reelId) &&
+                       incoming().userId == userId && incoming().targetId == reelId &&
+                       incoming().keys().hasAll(['userId', 'targetId', 'createdAt']) &&
+                       incoming().keys().hasOnly(['userId', 'targetId', 'createdAt']) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       exists(/databases/$(database)/documents/ig_reels/$(reelId));
+      allow update: if false;
+      allow delete: if isOwner(userId) && isValidId(reelId);
+    }
+
+    match /users/{userId}/ig_viewed_stories/{storyId} {
+      allow get: if isOwner(userId) && isValidId(storyId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(storyId) &&
+                       incoming().userId == userId && incoming().targetId == storyId &&
+                       incoming().keys().hasAll(['userId', 'targetId', 'createdAt']) &&
+                       incoming().keys().hasOnly(['userId', 'targetId', 'createdAt']) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       exists(/databases/$(database)/documents/ig_stories/$(storyId));
+      allow update: if false;
+      allow delete: if isOwner(userId) && isValidId(storyId);
+    }
+
+    match /users/{userId}/ig_notifications/{notifId} {
+      allow get: if isOwner(userId) && isValidId(notifId);
+      allow list: if isOwner(userId);
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidId(notifId) &&
+                       isValidIgNotification(incoming()) &&
+                       incoming().targetUserId == userId &&
+                       incoming().actorId == request.auth.uid &&
+                       incoming().read == false &&
+                       incoming().keys().hasAll(['targetUserId', 'actorId', 'actorUsername', 'type', 'previewText', 'read', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['targetUserId', 'actorId', 'actorUsername', 'actorAvatarUrl', 'type', 'postId', 'postThumbnail', 'previewText', 'read', 'createdAt', 'updatedAt']);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(notifId) &&
+                       isValidIgNotification(incoming()) &&
+                       incoming().targetUserId == existing().targetUserId &&
+                       incoming().actorId == existing().actorId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt']);
+
+      allow delete: if isOwner(userId) && isValidId(notifId);
+    }
+  }
+}

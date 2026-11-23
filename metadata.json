@@ -1,0 +1,6 @@
+{
+  "name": "Vistagram",
+  "description": "Full-featured Instagram-inspired social photo & video app with Stories, Feed, Reels, Explore, Direct Messages, Comments, Likes, Saves, and Profiles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

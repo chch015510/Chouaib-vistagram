@@ -1,0 +1,265 @@
+{
+  "entities": {
+    "IgUser": {
+      "title": "IgUser",
+      "description": "Public Instagram-style creator profile without PII.",
+      "type": "object",
+      "properties": {
+        "appScope": { "type": "string", "description": "App scope identifier (vistagram-main)." },
+        "userId": { "type": "string", "description": "Authenticated Firebase UID." },
+        "username": { "type": "string", "description": "Public handle (2..30 chars)." },
+        "displayName": { "type": "string", "description": "Public display name (2..60 chars)." },
+        "bio": { "type": "string", "description": "Profile bio (0..300 chars)." },
+        "website": { "type": "string", "description": "Profile website or link (0..120 chars)." },
+        "avatarUrl": { "type": "string", "description": "Optional avatar URL or base64 data URI." },
+        "verified": { "type": "boolean", "description": "Whether the account is verified." },
+        "postsCount": { "type": "integer", "description": "Total posts count (>= 0)." },
+        "followersCount": { "type": "integer", "description": "Total followers count (>= 0)." },
+        "followingCount": { "type": "integer", "description": "Total following count (>= 0)." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server update timestamp." }
+      },
+      "required": [
+        "appScope", "userId", "username", "displayName", "bio", "website",
+        "verified", "postsCount", "followersCount", "followingCount", "createdAt", "updatedAt"
+      ]
+    },
+    "FollowEdge": {
+      "title": "FollowEdge",
+      "description": "Follower or following relationship entry.",
+      "type": "object",
+      "properties": {
+        "appScope": { "type": "string" },
+        "userId": { "type": "string" },
+        "targetUserId": { "type": "string" },
+        "username": { "type": "string" },
+        "displayName": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["appScope", "userId", "targetUserId", "username", "displayName", "createdAt"]
+    },
+    "IgPost": {
+      "title": "IgPost",
+      "description": "Instagram feed photo or carousel post.",
+      "type": "object",
+      "properties": {
+        "appScope": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorUsername": { "type": "string" },
+        "authorDisplayName": { "type": "string" },
+        "authorAvatarUrl": { "type": "string" },
+        "authorVerified": { "type": "boolean" },
+        "mediaUrls": { "type": "array", "description": "1..5 image URIs or bundled resource refs." },
+        "filterName": { "type": "string" },
+        "caption": { "type": "string" },
+        "location": { "type": "string" },
+        "category": {
+          "type": "string",
+          "enum": ["PHOTOGRAPHY", "TRAVEL", "FOOD", "ART", "TECH", "FASHION", "LIFESTYLE"]
+        },
+        "likesCount": { "type": "integer" },
+        "commentsCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "appScope", "authorId", "authorUsername", "authorDisplayName", "authorVerified",
+        "mediaUrls", "filterName", "caption", "location", "category",
+        "likesCount", "commentsCount", "createdAt", "updatedAt"
+      ]
+    },
+    "IgComment": {
+      "title": "IgComment",
+      "description": "Comment on an Instagram post or reel.",
+      "type": "object",
+      "properties": {
+        "appScope": { "type": "string" },
+        "parentId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorUsername": { "type": "string" },
+        "authorAvatarUrl": { "type": "string" },
+        "body": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["appScope", "parentId", "authorId", "authorUsername", "body", "createdAt", "updatedAt"]
+    },
+    "IgStory": {
+      "title": "IgStory",
+      "description": "24-hour story slide.",
+      "type": "object",
+      "properties": {
+        "appScope": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorUsername": { "type": "string" },
+        "authorAvatarUrl": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "overlayText": { "type": "string" },
+        "filterName": { "type": "string" },
+        "expiresAtMillis": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "appScope", "authorId", "authorUsername", "mediaUrl",
+        "overlayText", "filterName", "expiresAtMillis", "createdAt", "updatedAt"
+      ]
+    },
+    "IgReel": {
+      "title": "IgReel",
+      "description": "Vertical short-form reel.",
+      "type": "object",
+      "properties": {
+        "appScope": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorUsername": { "type": "string" },
+        "authorAvatarUrl": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "caption": { "type": "string" },
+        "audioTrack": { "type": "string" },
+        "filterName": { "type": "string" },
+        "likesCount": { "type": "integer" },
+        "commentsCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "appScope", "authorId", "authorUsername", "mediaUrl", "caption",
+        "audioTrack", "filterName", "likesCount", "commentsCount", "createdAt", "updatedAt"
+      ]
+    },
+    "IgChat": {
+      "title": "IgChat",
+      "description": "1-on-1 Direct Message conversation thread.",
+      "type": "object",
+      "properties": {
+        "participantIds": { "type": "array" },
+        "participantAId": { "type": "string" },
+        "participantAName": { "type": "string" },
+        "participantAAvatar": { "type": "string" },
+        "participantBId": { "type": "string" },
+        "participantBName": { "type": "string" },
+        "participantBAvatar": { "type": "string" },
+        "lastMessageText": { "type": "string" },
+        "lastSenderId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "participantIds", "participantAId", "participantAName",
+        "participantBId", "participantBName", "lastMessageText",
+        "lastSenderId", "createdAt", "updatedAt"
+      ]
+    },
+    "IgMessage": {
+      "title": "IgMessage",
+      "description": "Message inside a Direct Message chat.",
+      "type": "object",
+      "properties": {
+        "chatId": { "type": "string" },
+        "participantIds": { "type": "array" },
+        "senderId": { "type": "string" },
+        "senderUsername": { "type": "string" },
+        "text": { "type": "string" },
+        "sharedPostId": { "type": "string" },
+        "sharedPostImage": { "type": "string" },
+        "sharedPostAuthor": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["chatId", "participantIds", "senderId", "senderUsername", "text", "createdAt"]
+    },
+    "UserTargetMarker": {
+      "title": "UserTargetMarker",
+      "description": "User-scoped marker for liked posts, bookmarks, liked reels, or viewed stories.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "targetId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "targetId", "createdAt"]
+    },
+    "IgNotification": {
+      "title": "IgNotification",
+      "description": "User-scoped activity notification (like, comment, follow, dm).",
+      "type": "object",
+      "properties": {
+        "targetUserId": { "type": "string" },
+        "actorId": { "type": "string" },
+        "actorUsername": { "type": "string" },
+        "actorAvatarUrl": { "type": "string" },
+        "type": { "type": "string", "enum": ["LIKE", "COMMENT", "FOLLOW", "STORY_REPLY"] },
+        "postId": { "type": "string" },
+        "postThumbnail": { "type": "string" },
+        "previewText": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["targetUserId", "actorId", "actorUsername", "type", "previewText", "read", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/ig_users/{userId}": {
+      "schema": { "$ref": "#/entities/IgUser" },
+      "description": "Public Instagram creator profiles."
+    },
+    "/ig_users/{userId}/followers/{followerId}": {
+      "schema": { "$ref": "#/entities/FollowEdge" },
+      "description": "Followers of userId."
+    },
+    "/ig_users/{userId}/following/{targetId}": {
+      "schema": { "$ref": "#/entities/FollowEdge" },
+      "description": "Accounts followed by userId."
+    },
+    "/ig_posts/{postId}": {
+      "schema": { "$ref": "#/entities/IgPost" },
+      "description": "Instagram feed posts."
+    },
+    "/ig_posts/{postId}/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/IgComment" },
+      "description": "Comments on posts."
+    },
+    "/ig_stories/{storyId}": {
+      "schema": { "$ref": "#/entities/IgStory" },
+      "description": "Active 24h stories."
+    },
+    "/ig_reels/{reelId}": {
+      "schema": { "$ref": "#/entities/IgReel" },
+      "description": "Vertical short-form reels."
+    },
+    "/ig_reels/{reelId}/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/IgComment" },
+      "description": "Comments on reels."
+    },
+    "/ig_chats/{chatId}": {
+      "schema": { "$ref": "#/entities/IgChat" },
+      "description": "Direct Message threads."
+    },
+    "/ig_chats/{chatId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/IgMessage" },
+      "description": "Messages inside a DM thread."
+    },
+    "/users/{userId}/ig_liked_posts/{postId}": {
+      "schema": { "$ref": "#/entities/UserTargetMarker" },
+      "description": "Liked post markers."
+    },
+    "/users/{userId}/ig_bookmarks/{postId}": {
+      "schema": { "$ref": "#/entities/UserTargetMarker" },
+      "description": "Saved post bookmarks."
+    },
+    "/users/{userId}/ig_liked_reels/{reelId}": {
+      "schema": { "$ref": "#/entities/UserTargetMarker" },
+      "description": "Liked reel markers."
+    },
+    "/users/{userId}/ig_viewed_stories/{storyId}": {
+      "schema": { "$ref": "#/entities/UserTargetMarker" },
+      "description": "Viewed story markers."
+    },
+    "/users/{userId}/ig_notifications/{notifId}": {
+      "schema": { "$ref": "#/entities/IgNotification" },
+      "description": "User activity notifications."
+    }
+  }
+}
